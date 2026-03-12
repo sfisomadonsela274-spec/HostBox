@@ -1,0 +1,91 @@
+# Netlify Configuration for HostBox Portfolio
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Build command - runs TypeScript compilation and Vite build
+  command = "npm run build"
+
+  # Directory to publish - Vite outputs to dist/
+  publish = "dist"
+
+  # Functions directory (for future serverless functions if needed)
+  functions = "netlify/functions"
+
+# Build environment
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+
+# Development settings for Netlify Dev
+[dev]
+  command = "npm run dev"
+  port = 3000
+  targetPort = 5173
+  autoLaunch = false
+
+# SPA redirect - send all routes to index.html for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security and performance headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Security headers
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+    # Performance headers
+    X-DNS-Prefetch-Control = "on"
+
+# Cache static assets aggressively
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache images
+[[headers]]
+  for = "*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Don't cache HTML (for deployments)
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Production context
+[context.production]
+  command = "npm run build"
+
+  [context.production.environment]
+    NODE_ENV = "production"
+
+# Deploy preview context
+[context.deploy-preview]
+  command = "npm run build"
+
+# Branch deploy context
+[context.branch-deploy]
+  command = "npm run build"
+
+# Plugin configuration (optional - uncomment if needed)
+# [[plugins]]
+#   package = "@netlify/plugin-lighthouse"

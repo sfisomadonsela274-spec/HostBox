@@ -1,0 +1,20 @@
+{
+  "projects": [
+    {
+      "id": 1,
+      "title": "Project Title",
+      "description": "Project description goes here",
+      "tech": [
+        "React",
+        "Node.js",
+        "MongoDB"
+      ],
+      "githubUrl": "https://github.com/username/repo",
+      "liveUrl": "https://live-demo-url.com",
+      "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop",
+      "stars": 0,
+      "forks": 0,
+      "language": "JavaScript"
+    }
+  ]
+}
