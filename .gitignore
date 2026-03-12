@@ -25,6 +25,11 @@ yarn-error.log*
 server.log
 backend/server.log
 
+# SQLite database
+*.db
+backend/hostbox.db
+backend/hostbox.db.backup
+
 # TypeScript cache
 *.tsbuildinfo
 tsconfig.tsbuildinfo
