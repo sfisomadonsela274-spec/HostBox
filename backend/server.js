@@ -10,8 +10,8 @@ const path = require("path");
 const app = express();
 
 // Middleware
+app.use(cors()); // CORS before helmet
 app.use(helmet()); // Basic security headers
-app.use(cors());
 app.use(express.json());
 
 // SQLite Database Setup
