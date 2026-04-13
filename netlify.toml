@@ -3,7 +3,7 @@
 
 [build]
   # Build command - install dependencies then build
-  command = "npm install && npm run build"
+  command = "npm ci --include=dev && npm run build"
 
   # Directory to publish - Vite outputs to dist/
   publish = "dist"
