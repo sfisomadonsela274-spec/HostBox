@@ -73,18 +73,18 @@
 
 # Production context
 [context.production]
-  command = "npm run build"
+  command = "npm ci --include=dev && npm run build"
 
   [context.production.environment]
     NODE_ENV = "production"
 
 # Deploy preview context
 [context.deploy-preview]
-  command = "npm run build"
+  command = "npm ci --include=dev && npm run build"
 
 # Branch deploy context
 [context.branch-deploy]
-  command = "npm run build"
+  command = "npm ci --include=dev && npm run build"
 
 # Plugin configuration (optional - uncomment if needed)
 # [[plugins]]
