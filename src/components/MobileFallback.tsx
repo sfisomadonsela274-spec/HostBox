@@ -102,7 +102,6 @@ export default function MobileFallback() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
-  const [_expandedProject, _setExpandedProject] = useState<string | null>(null);
 
   const skills = [
     "Python",
@@ -416,7 +415,6 @@ export default function MobileFallback() {
             <div className="space-y-3">
               {projects.map((project) => {
                 const projectId = project._id || project.id;
-                const _isExpanded = _expandedProject === projectId;
 
                 return (
                   <motion.div
