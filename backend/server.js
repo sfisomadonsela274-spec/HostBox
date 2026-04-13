@@ -1,10 +1,9 @@
 // Backend server with Express and SQLite for HostBox Desktop OS Portfolio
-// Uses SQLite for local/embedded permanent data storage
+// Uses SQLite for local/embedded permanent storage, or Turso for cloud persistence
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
 const app = express();
@@ -14,49 +13,85 @@ app.use(cors()); // CORS before helmet
 app.use(helmet()); // Basic security headers
 app.use(express.json());
 
-// SQLite Database Setup
-const dbPath = path.join(__dirname, "hostbox.db");
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("❌ SQLite connection error:", err);
-  } else {
-    console.log("✅ Connected to SQLite database");
-    initializeDatabase();
-  }
-});
+// Database Setup - Turso if configured, otherwise local SQLite
+let db;
+const useTurso = !!(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
 
-// Promisify db.run and db.all for easier async/await
-const dbRun = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
+if (useTurso) {
+  const { createClient } = require("@libsql/client");
+  const turso = createClient({
+    url: process.env.TURSO_DATABASE_URL,
+    authToken: process.env.TURSO_AUTH_TOKEN,
   });
-};
+  db = {
+    run: async (sql, params = []) => {
+      const result = await turso.execute({ sql, args: params });
+      return { id: result.lastRowId, changes: result.affectedRows };
+    },
+    all: async (sql, params = []) => {
+      const result = await turso.execute({ sql, args: params });
+      return result.rows || [];
+    },
+    get: async (sql, params = []) => {
+      const result = await turso.execute({ sql, args: params });
+      return result.rows?.[0] || null;
+    },
+  };
+  console.log("✅ Connected to Turso database");
+} else {
+  const sqlite3 = require("sqlite3").verbose();
+  const dbPath = path.join(__dirname, "hostbox.db");
+  const localDb = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error("❌ SQLite connection error:", err);
+    } else {
+      console.log("✅ Connected to local SQLite database at:", dbPath);
+    }
+  });
+  db = {
+    run: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        localDb.run(sql, params, function (err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, changes: this.changes });
+        });
+      });
+    },
+    all: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        localDb.all(sql, params, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        });
+      });
+    },
+    get: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        localDb.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        });
+      });
+    },
+  };
+}
 
-const dbAll = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
-};
+// Promisified db helpers
+async function dbRun(sql, params = []) {
+  return db.run(sql, params);
+}
 
-const dbGet = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-};
+async function dbAll(sql, params = []) {
+  return db.all(sql, params);
+}
+
+async function dbGet(sql, params = []) {
+  return db.get(sql, params);
+}
 
 // Initialize Database Tables
-function initializeDatabase() {
-  // Create projects table
-  db.run(
+async function initializeDatabase() {
+  const tables = [
     `CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -71,14 +106,6 @@ function initializeDatabase() {
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
-    (err) => {
-      if (err) console.error("Error creating projects table:", err);
-      else console.log("✅ Projects table initialized");
-    }
-  );
-
-  // Create resume table
-  db.run(
     `CREATE TABLE IF NOT EXISTS resume (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -89,14 +116,6 @@ function initializeDatabase() {
       summary TEXT,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
-    (err) => {
-      if (err) console.error("Error creating resume table:", err);
-      else console.log("✅ Resume table initialized");
-    }
-  );
-
-  // Create experience table
-  db.run(
     `CREATE TABLE IF NOT EXISTS experience (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       resumeId INTEGER NOT NULL,
@@ -107,14 +126,6 @@ function initializeDatabase() {
       description TEXT,
       FOREIGN KEY(resumeId) REFERENCES resume(id)
     )`,
-    (err) => {
-      if (err) console.error("Error creating experience table:", err);
-      else console.log("✅ Experience table initialized");
-    }
-  );
-
-  // Create education table
-  db.run(
     `CREATE TABLE IF NOT EXISTS education (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       resumeId INTEGER NOT NULL,
@@ -124,14 +135,6 @@ function initializeDatabase() {
       focus TEXT,
       FOREIGN KEY(resumeId) REFERENCES resume(id)
     )`,
-    (err) => {
-      if (err) console.error("Error creating education table:", err);
-      else console.log("✅ Education table initialized");
-    }
-  );
-
-  // Create certifications table
-  db.run(
     `CREATE TABLE IF NOT EXISTS certifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       resumeId INTEGER NOT NULL,
@@ -140,12 +143,20 @@ function initializeDatabase() {
       year TEXT,
       FOREIGN KEY(resumeId) REFERENCES resume(id)
     )`,
-    (err) => {
-      if (err) console.error("Error creating certifications table:", err);
-      else console.log("✅ Certifications table initialized");
+  ];
+
+  for (const sql of tables) {
+    try {
+      await dbRun(sql);
+    } catch (e) {
+      console.error("Error creating table:", e.message);
     }
-  );
+  }
+  console.log("✅ All database tables initialized");
 }
+
+// Initialize on server start
+initializeDatabase();
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 
